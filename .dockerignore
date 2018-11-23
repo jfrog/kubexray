@@ -1,0 +1,11 @@
+tmp
+.git
+.idea
+README.md
+old
+hooks
+charts
+build.sh
+.pipeline
+bin
+tmp

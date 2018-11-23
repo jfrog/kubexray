@@ -1,0 +1,24 @@
+{{- if .Values.rbac.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "kube-xray.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "kube-xray.name" . }}
+    helm.sh/chart: {{ include "kube-xray.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+rules:
+  - apiGroups:
+      - ""
+      - extensions
+      - apps
+      - batch
+    resources:
+      - pods
+      - statefulsets
+      - deployments
+      - jobs
+    verbs:
+      - "*"
+{{ end }}

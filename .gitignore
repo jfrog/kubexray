@@ -1,0 +1,6 @@
+vendor/
+bin/
+go.sum
+files/
+tmp/
+override-values.yaml
