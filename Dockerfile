@@ -6,7 +6,7 @@ ARG srcpath="/build/kube-xray"
 RUN apk --no-cache add git && \
     mkdir -p "$srcpath"
 
-ADD . "$srcpath"
+ADD cmd/kube-xray/ "$srcpath"
 
 RUN cd "$srcpath" && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a --installsuffix cgo --ldflags="-s" -o /kube-xray

@@ -7,6 +7,11 @@ define xray_config
 $(eval XRAY_CONFIG := $(shell cat charts/files/xray_config.yaml | base64))
 endef
 
+.PHONY: build
+build:
+	@echo "++ Building kube-xray"
+	CGO_ENABLED=0 GOOS=linux cd cmd/kube-xray && go build -a -tags netgo -ldflags "$(LDFLAGS) -w -s" -o kube-xray .
+
 .PHONY: cloud
 cloud:
 	@$(call gen_commit_sha)
@@ -19,7 +24,7 @@ docker:
 .PHONY: go
 go:
 	mkdir -p bin
-	go build -a --installsuffix cgo --ldflags="-s" -o bin/kube-xray
+	cd cmd/kube-xray && go build -a --installsuffix cgo --ldflags="-s" -o ../../bin/kube-xray
 
 .PHONY: run
 run:

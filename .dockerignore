@@ -9,3 +9,4 @@ build.sh
 .pipeline
 bin
 tmp
+go.sum
