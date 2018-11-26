@@ -5,4 +5,4 @@ jobs:
     steps:
       - checkout
       # build the application image
-      - run: make build
+      - run: make image
