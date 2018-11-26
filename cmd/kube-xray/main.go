@@ -17,13 +17,9 @@ import (
 	"k8s.io/client-go/rest"
 
 	// Import to initialize client auth plugins.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	// Only GCP GKE auth is supported, Azure auth crashes with go-client v9.0.0
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
-
-//https://engineering.bitnami.com/articles/a-deep-dive-into-kubernetes-controllers.html
-//https://github.com/trstringer/k8s-controller-core-resource
-//https://github.com/kubernetes/community/blob/master/contributors/devel/controllers.md
-//http://borismattijssen.github.io/articles/kubernetes-informers-controllers-reflectors-stores
 
 // retrieve the k8s cluster client from within/outside of the cluster
 func getKubernetesClient() kubernetes.Interface {
