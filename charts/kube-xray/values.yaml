@@ -26,7 +26,7 @@ scanPolicy:
     # Set for unscanned statefulsets delete/scaledown/ignore
     statefulSets: ignore
     # Whitelist namespaces
-    whiltelistNamespaces: "kube-system,kube-xray"
+    whitelistNamespaces: "kube-system,kube-xray"
   security:
     # Set for deployments with security issues delete/scaledown/ignore
     deployments: ignore
