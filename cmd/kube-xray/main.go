@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
@@ -58,8 +59,33 @@ func getKubernetesClient() kubernetes.Interface {
 	return client
 }
 
+func setLogLevel() {
+	lv, ok := os.LookupEnv("KUBE_XRAY_LOG_LEVEL")
+	if !ok {
+		return
+	}
+	switch strings.ToUpper(strings.TrimSpace(lv)) {
+	case "DEBUG":
+		log.SetLevel(log.DebugLevel)
+	case "INFO":
+		log.SetLevel(log.InfoLevel)
+	case "WARN":
+		log.SetLevel(log.WarnLevel)
+	case "ERROR":
+		log.SetLevel(log.ErrorLevel)
+	case "FATAL":
+		log.SetLevel(log.FatalLevel)
+	case "PANIC":
+		log.SetLevel(log.PanicLevel)
+	default:
+		log.Warnf("Unrecognized log level '%s'; recognized log levels are DEBUG, INFO, WARN, ERROR, FATAL, PANIC", lv)
+	}
+}
+
 // main code path
 func main() {
+	setLogLevel()
+
 	client := getKubernetesClient()
 
 	namespace := os.Getenv("JFROG_K8S_NS")
