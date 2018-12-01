@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -11,6 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 	core_v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -54,6 +56,18 @@ type TestHandler struct {
 	unscanned    Policy
 	security     Policy
 	license      Policy
+}
+
+type NotifyComponentPayload struct {
+	Name     string `json:"component_name"`
+	Checksum string `json:"component_sha"`
+}
+
+type NotifyPayload struct {
+	Name       string                   `json:"pod_name"`
+	Namespace  string                   `json:"namespace"`
+	Action     string                   `json:"action"`
+	Components []NotifyComponentPayload `json:"components"`
 }
 
 // Unmarshaler implementation for Policy type
@@ -127,6 +141,8 @@ type searchItem struct {
 	severity string
 	isstype string
 	sha2 string
+	name string
+	action string
 	pod *core_v1.Pod
 }
 
@@ -147,7 +163,7 @@ func parseWebhook(body interface{}) []searchItem {
 			if pkgtype != "Docker" || sha2 == "" {
 				continue
 			}
-			res := searchItem{severity, isstype, sha2, nil}
+			res := searchItem{severity, isstype, sha2, "", "", nil}
 			result = append(result, res)
 		}
 	}
@@ -175,6 +191,7 @@ func searchChecksums(client kubernetes.Interface, shas []searchItem) ([]searchIt
 				for _, item := range shas {
 					if item.sha2 == sha2 {
 						res := item
+						res.name = stat.Image
 						res.pod = &pod
 						result = append(result, res)
 					}
@@ -264,9 +281,41 @@ func handleXrayWebhook(t *TestHandler, client kubernetes.Interface) http.Handler
 				if t.slackWebhook != "" {
 					notifyForPod(t.slackWebhook, term.pod, term.isstype == "security", term.isstype == "license", delete)
 				}
+				if delete {
+					term.action = "delete"
+				} else {
+					term.action = "scaledown"
+				}
 				removePod(client, term.pod, typ, delete)
 			} else {
 				log.Debugf("Ignoring pod: %s", term.pod.Name)
+			}
+		}
+		groups := make(map[types.UID][]*searchItem)
+		for _, item := range searchresult {
+			if item.action == "" {
+				continue
+			}
+			group, ok := groups[item.pod.UID]
+			if !ok {
+				group = make([]*searchItem, 0)
+			}
+			groups[item.pod.UID] = append(group, &item)
+		}
+		for _, group := range groups {
+			comp := make([]NotifyComponentPayload, 0)
+			act := "scaledown"
+			for _, item := range group {
+				c := NotifyComponentPayload{Name: item.name, Checksum: item.sha2}
+				if item.action == "delete" {
+					act = "delete"
+				}
+				comp = append(comp, c)
+			}
+			payload := NotifyPayload{Name: group[0].pod.Name, Namespace: group[0].pod.Namespace, Action: act, Components: comp}
+			err := sendXrayNotify(t, payload)
+			if err != nil {
+				log.Errorf("Problem notifying xray about pod %s: %s", payload.Name, err)
 			}
 		}
 		resp.WriteHeader(200)
@@ -277,7 +326,7 @@ func handleXrayWebhook(t *TestHandler, client kubernetes.Interface) http.Handler
 func (t *TestHandler) ObjectCreated(client kubernetes.Interface, obj interface{}) {
 	log.Debug("TestHandler.ObjectCreated")
 	_, typ := checkResource(client, obj.(*core_v1.Pod))
-	rec, seciss, liciss := printPodInfo(t, obj.(*core_v1.Pod))
+	comps, rec, seciss, liciss := printPodInfo(t, obj.(*core_v1.Pod))
 	if isWhitelistedNamespace(t, obj.(*core_v1.Pod), rec, seciss, liciss) {
 		log.Debug("Ignoring pod: %s (due to whitelisted namespace: %s)", obj.(*core_v1.Pod).Name, obj.(*core_v1.Pod).Namespace)
 		return
@@ -308,6 +357,16 @@ func (t *TestHandler) ObjectCreated(client kubernetes.Interface, obj interface{}
 			notifyForPod(t.slackWebhook, obj.(*core_v1.Pod), seciss, liciss, delete)
 		}
 		removePod(client, obj.(*core_v1.Pod), typ, delete)
+		pod := obj.(*core_v1.Pod)
+		act := "scaledown"
+		if delete {
+			act = "delete"
+		}
+		payload := NotifyPayload{Name: pod.Name, Namespace: pod.Namespace, Action: act, Components: comps}
+		err := sendXrayNotify(t, payload)
+		if err != nil {
+			log.Errorf("Problem notifying xray about pod %s: %s", payload.Name, err)
+		}
 	} else {
 		log.Debugf("Ignoring pod: %s", obj.(*core_v1.Pod).Name)
 	}
@@ -321,6 +380,31 @@ func (t *TestHandler) ObjectDeleted(client kubernetes.Interface, obj interface{}
 // ObjectUpdated is called when an object is updated
 func (t *TestHandler) ObjectUpdated(client kubernetes.Interface, objOld, objNew interface{}) {
 	log.Debug("TestHandler.ObjectUpdated")
+}
+
+func sendXrayNotify(t *TestHandler, payload NotifyPayload) error {
+	log.Debugf("Sending message back to xray concerning pod %s", payload.Name)
+	client := &http.Client{}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	log.Debugf("Message body: %s", string(body))
+	req, err := http.NewRequest("POST", t.url+"/kubexray", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.SetBasicAuth(t.user, t.pass)
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return errors.New("xray server responded with status: " + resp.Status)
+	}
+	return nil
 }
 
 func isWhitelistedNamespace(t *TestHandler, pod *core_v1.Pod, rec, seciss, liciss bool) bool {
@@ -454,7 +538,8 @@ func removePod(client kubernetes.Interface, pod *core_v1.Pod, typ ResourceType, 
 	}
 }
 
-func printPodInfo(t *TestHandler, pod *core_v1.Pod) (bool, bool, bool) {
+func printPodInfo(t *TestHandler, pod *core_v1.Pod) ([]NotifyComponentPayload, bool, bool, bool) {
+	components := make([]NotifyComponentPayload, 0)
 	recognized := true
 	hassecissue := false
 	haslicissue := false
@@ -472,13 +557,15 @@ func printPodInfo(t *TestHandler, pod *core_v1.Pod) (bool, bool, bool) {
 		if sha2 != "NA" && t.url != "" {
 			rec, secissue, licissue, err := checkXray(sha2, t.url, t.user, t.pass)
 			if err == nil {
+				comp := NotifyComponentPayload{Name: status.Image, Checksum: sha2}
+				components = append(components, comp)
 				recognized = recognized && rec
 				hassecissue = hassecissue || secissue
 				haslicissue = haslicissue || licissue
 			}
 		}
 	}
-	return recognized, hassecissue, haslicissue
+	return components, recognized, hassecissue, haslicissue
 }
 
 func getConfig(path, path2 string) (Policy, Policy, Policy, error) {
