@@ -14,11 +14,12 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 // Handler interface contains the methods that are required
 type Handler interface {
-	Init(client kubernetes.Interface) error
+	Init(client kubernetes.Interface, config *rest.Config) error
 	ObjectCreated(client kubernetes.Interface, obj interface{})
 	ObjectDeleted(client kubernetes.Interface, obj interface{})
 	ObjectUpdated(client kubernetes.Interface, objOld, objNew interface{})
@@ -48,6 +49,7 @@ type Policy struct {
 
 // TestHandler is a sample implementation of Handler
 type TestHandler struct {
+	clusterurl   string
 	url          string
 	user         string
 	pass         string
@@ -67,6 +69,7 @@ type NotifyPayload struct {
 	Name       string                   `json:"pod_name"`
 	Namespace  string                   `json:"namespace"`
 	Action     string                   `json:"action"`
+	Cluster    string                   `json:"cluster_url"`
 	Components []NotifyComponentPayload `json:"components"`
 }
 
@@ -112,8 +115,13 @@ func (x *Policy) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // Init handles any handler initialization
-func (t *TestHandler) Init(client kubernetes.Interface) error {
+func (t *TestHandler) Init(client kubernetes.Interface, config *rest.Config) error {
 	log.Debug("TestHandler.Init")
+	host := config.Host
+	if host[len(host)-1] != '/' {
+		host += "/"
+	}
+	t.clusterurl = host
 	url, user, pass, slack, token, err := getXrayConfig("/config/secret/xray_config.yaml", "./xray_config.yaml")
 	if err != nil {
 		log.Error("Cannot read xray_config.yaml: ", err)
@@ -312,7 +320,7 @@ func handleXrayWebhook(t *TestHandler, client kubernetes.Interface) http.Handler
 				}
 				comp = append(comp, c)
 			}
-			payload := NotifyPayload{Name: group[0].pod.Name, Namespace: group[0].pod.Namespace, Action: act, Components: comp}
+			payload := NotifyPayload{Name: group[0].pod.Name, Namespace: group[0].pod.Namespace, Action: act, Cluster: t.clusterurl, Components: comp}
 			err := sendXrayNotify(t, payload)
 			if err != nil {
 				log.Errorf("Problem notifying xray about pod %s: %s", payload.Name, err)
@@ -362,7 +370,7 @@ func (t *TestHandler) ObjectCreated(client kubernetes.Interface, obj interface{}
 		if delete {
 			act = "delete"
 		}
-		payload := NotifyPayload{Name: pod.Name, Namespace: pod.Namespace, Action: act, Components: comps}
+		payload := NotifyPayload{Name: pod.Name, Namespace: pod.Namespace, Action: act, Cluster: t.clusterurl, Components: comps}
 		err := sendXrayNotify(t, payload)
 		if err != nil {
 			log.Errorf("Problem notifying xray about pod %s: %s", payload.Name, err)

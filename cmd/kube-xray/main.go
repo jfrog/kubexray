@@ -23,7 +23,7 @@ import (
 )
 
 // retrieve the k8s cluster client from within/outside of the cluster
-func getKubernetesClient() kubernetes.Interface {
+func getKubernetesClient() (kubernetes.Interface, *rest.Config) {
 
 	var client kubernetes.Interface
 
@@ -31,7 +31,7 @@ func getKubernetesClient() kubernetes.Interface {
 	if err == nil {
 		client, err := kubernetes.NewForConfig(clusterConfig)
 		if err == nil {
-			return client
+			return client, clusterConfig
 		}
 	}
 
@@ -56,7 +56,7 @@ func getKubernetesClient() kubernetes.Interface {
 	}
 
 	log.Debug("Successfully constructed k8s client")
-	return client
+	return client, config
 }
 
 func setLogLevel() {
@@ -86,7 +86,7 @@ func setLogLevel() {
 func main() {
 	setLogLevel()
 
-	client := getKubernetesClient()
+	client, config := getKubernetesClient()
 
 	namespace := os.Getenv("JFROG_K8S_NS")
 	if namespace == "" {
@@ -144,7 +144,7 @@ func main() {
 	})
 
 	handler := &TestHandler{}
-	if handler.Init(client) != nil {
+	if handler.Init(client, config) != nil {
 		os.Exit(1)
 	}
 
