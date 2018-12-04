@@ -29,7 +29,7 @@ steps:
   - --key=kubexray-ci
   id: 'decrypt_art_creds'
 
- - name: gcr.io/cloud-builders/gcloud
+- name: gcr.io/cloud-builders/gcloud
   args:
   - kms
   - decrypt
