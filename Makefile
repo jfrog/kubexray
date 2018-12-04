@@ -24,5 +24,5 @@ cloud:
 
 .PHONY: encrypt
 encrypt:
-	gcloud kms encrypt --key=kubexray-ci --keyring=kubexray-ci --location=global --ciphertext-file=artifactory.creds.enc --plaintext-file=artifactory.creds
+	gcloud kms encrypt --key=kubexray-ci --keyring=kubexray-ci --location=global --ciphertext-file=charts/files/artifactory.creds.enc --plaintext-file=charts/files/artifactory.creds
 	gcloud kms encrypt --key=kubexray-ci --keyring=kubexray-ci --location=global --ciphertext-file=charts/files/xray_config.yaml.enc --plaintext-file=charts/files/xray_config.yaml
