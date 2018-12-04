@@ -22,12 +22,12 @@ existingSecret: ""
 # Set kubexray scannig policy
 scanPolicy:
   unscanned:
+    # Whitelist namespaces
+    whitelistNamespaces: "kube-system,kubexray"
     # Set for unscanned deployments delete/scaledown/ignore
     deployments: ignore
     # Set for unscanned statefulsets delete/scaledown/ignore
     statefulSets: ignore
-    # Whitelist namespaces
-    whitelistNamespaces: "kube-system,kubexray"
   security:
     # Set for deployments with security issues delete/scaledown/ignore
     deployments: ignore
@@ -42,7 +42,7 @@ scanPolicy:
 # Set which user:group you want kubexray to be run with
 # kubexray docker image already comes preset with rootless user
 securityContext:
-  enabled: false
+  enabled: true
   kubeXrayUserId: 1000
   kubeXrayGroupId: 1000
 
