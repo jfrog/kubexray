@@ -4,7 +4,7 @@
 scanPolicy:
   unscanned:
     # Whitelist namespaces
-    whitelistNamespaces: "kube-system,kubexray"
+    whitelistNamespaces: "kube-system,kubexray,cert-manager,nginx-ingress"
     # Set for unscanned deployments delete/scaledown/ignore
     deployments: scaledown
     # Set for unscanned statefulsets delete/scaledown/ignore
@@ -19,4 +19,3 @@ scanPolicy:
     deployments: ignore
     # Set for statefulsets with license issues delete/scaledown/ignore
     statefulSets: ignore
-
