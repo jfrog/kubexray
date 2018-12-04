@@ -1,0 +1,22 @@
+# Override values for kubexray.
+
+# Set kubexray scannig policy
+scanPolicy:
+  unscanned:
+    # Set for unscanned deployments delete/scaledown/ignore
+    deployments: scaledown
+    # Set for unscanned statefulsets delete/scaledown/ignore
+    statefulSets: scaledown
+    # Whitelist namespaces
+    whiltelistNamespaces: "kube-system,kubexray"
+  security:
+    # Set for deployments with security issues delete/scaledown/ignore
+    deployments: scaledown
+    # Set for statefulsets with security issues delete/scaledown/ignore
+    statefulSets: scaledown
+  license:
+    # Set for deployments with license issues delete/scaledown/ignore
+    deployments: ignore
+    # Set for statefulsets with license issues delete/scaledown/ignore
+    statefulSets: ignore
+
