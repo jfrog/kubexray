@@ -1,24 +1,25 @@
-# Default values for kube-xray.
+# Default values for kubexray.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
 replicaCount: 1
 
 image:
-  repository: _update_with_real_repo_/kube-xray
-  tag: latest
+  repository: _update_with_the_real_repo_/kubexray
+  # Note that by default we use appVersion to get image tag
+  # tag:
   pullPolicy: Always
 
 # Set the Xray config file, it sets access to Xray instance
 # The key must be encoded with base64
-# e.g. `cat xray_config.yaml | base64 -w 0`
-# It is only used if no existing secret is specified
+# e.g. `cat xray_config.yaml | base64`
+# It is only used if no existing secret is specified below
 xrayConfig: ""
 
 # Specify an existing secret holding the Xray config
 existingSecret: ""
 
-# Set kube-xray scannig policy
+# Set kubexray scannig policy
 scanPolicy:
   unscanned:
     # Set for unscanned deployments delete/scaledown/ignore
@@ -26,7 +27,7 @@ scanPolicy:
     # Set for unscanned statefulsets delete/scaledown/ignore
     statefulSets: ignore
     # Whitelist namespaces
-    whitelistNamespaces: "kube-system,kube-xray"
+    whitelistNamespaces: "kube-system,kubexray"
   security:
     # Set for deployments with security issues delete/scaledown/ignore
     deployments: ignore
@@ -38,8 +39,8 @@ scanPolicy:
     # Set for statefulsets with license issues delete/scaledown/ignore
     statefulSets: ignore
 
-# Set which user:group you want kube-xray to be run with
-# kube-xray docker image already comes preset with rootless user
+# Set which user:group you want kubexray to be run with
+# kubexray docker image already comes preset with rootless user
 securityContext:
   enabled: false
   kubeXrayUserId: 1000
@@ -60,11 +61,11 @@ ingress:
 
   path: /
   hosts:
-    - kube-xray.example.com
+    - kubexray.example.com
   tls: []
-  #  - secretName: kube-xray.example.com
+  #  - secretName: kubexray.example.com
   #    hosts:
-  #      - kube-xray.example.com
+  #      - kubexray.example.com
 
 # Set livenessProbe
 # livenessProbe:

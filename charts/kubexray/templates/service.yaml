@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "kube-xray.fullname" . }}
+  name: {{ include "kubexray.fullname" . }}
   labels:
-    app.kubernetes.io/name: {{ include "kube-xray.name" . }}
-    helm.sh/chart: {{ include "kube-xray.chart" . }}
+    app.kubernetes.io/name: {{ include "kubexray.name" . }}
+    helm.sh/chart: {{ include "kubexray.chart" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
@@ -15,6 +15,5 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app.kubernetes.io/name: {{ include "kube-xray.name" . }}
+    app.kubernetes.io/name: {{ include "kubexray.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
-

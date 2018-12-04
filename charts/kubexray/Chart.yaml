@@ -1,0 +1,20 @@
+apiVersion: v1
+name: kubexray
+version: 0.2.6
+appVersion: 0.1.0
+home: https://github.com/jfrog/kubexray
+description: kubexray Helm chart
+keywords:
+- xray
+- jfrog
+- security
+sources:
+- https://github.com/jfrog/kubexray
+maintainers:
+- name: jainishshah17
+  email: jainishs@jfrog.com
+- name: eldada
+  email: eldada@jfrog.com
+- name: rimusz
+  email: rimasm@jfrog.com
+icon: https://raw.githubusercontent.com/jfrog/kubexray/master/images/kubexray-logo.png

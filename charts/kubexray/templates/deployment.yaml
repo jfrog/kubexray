@@ -2,27 +2,27 @@
 apiVersion: apps/v1beta2
 kind: Deployment
 metadata:
-  name: {{ include "kube-xray.fullname" . }}
+  name: {{ include "kubexray.fullname" . }}
   labels:
-    app.kubernetes.io/name: {{ include "kube-xray.name" . }}
-    helm.sh/chart: {{ include "kube-xray.chart" . }}
+    app.kubernetes.io/name: {{ include "kubexray.name" . }}
+    helm.sh/chart: {{ include "kubexray.chart" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "kube-xray.name" . }}
+      app.kubernetes.io/name: {{ include "kubexray.name" . }}
       app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ include "kube-xray.name" . }}
+        app.kubernetes.io/name: {{ include "kubexray.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/config-xray.yaml") . | sha256sum }}
     spec:
-      serviceAccountName: {{ include "kube-xray.fullname" . }}
+      serviceAccountName: {{ include "kubexray.fullname" . }}
 {{- if .Values.securityContext.enabled }}
       securityContext:
         runAsUser: {{ .Values.securityContext.kubeXrayUserId }}
@@ -30,7 +30,7 @@ spec:
 {{- end }}
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
@@ -50,10 +50,10 @@ spec:
       volumes:
         - name: xray-config
           secret:
-            secretName: {{ default (include "kube-xray.fullname" .) .Values.existingSecret }}
+            secretName: {{ default (include "kubexray.fullname" .) .Values.existingSecret }}
         - name: config
           configMap:
-            name: {{ include "kube-xray.fullname" . }}
+            name: {{ include "kubexray.fullname" . }}
     {{- with .Values.nodeSelector }}
       nodeSelector:
 {{ toYaml . | indent 8 }}
