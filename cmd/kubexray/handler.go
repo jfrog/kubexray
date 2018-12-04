@@ -614,49 +614,108 @@ func getXrayConfig(path, path2 string) (string, string, string, string, string, 
 	return "", "", "", "", "", errors.New("xray_config.yaml does not contain required information")
 }
 
+type ComponentPayload struct {
+	Package string `json:"package_id"`
+	Version string `json:"version"`
+}
+
+type ComponentAPIResponse struct {
+	Checksum   string             `json:"sha256"`
+	Components []ComponentPayload `json:"ids"`
+}
+
+type ViolationAPIResponseItem struct {
+	Type     string `json:"type"`
+	Severity string `json:"severity"`
+}
+
+type ViolationAPIResponse struct {
+	Total int                        `json:"total_count"`
+	Data  []ViolationAPIResponseItem `json:"data"`
+}
+
 func checkXray(sha2, url, user, pass string) (bool, bool, bool, error) {
 	log.Debugf("Checking sha %s with Xray ...", sha2)
-	client := &http.Client{}
-	body := strings.NewReader("{\"checksums\":[\"" + sha2 + "\"]}")
-	req, err := http.NewRequest("POST", url+"/api/v1/summary/artifact", body)
+	var data ComponentAPIResponse
+	err := func(data *ComponentAPIResponse) error {
+		client := &http.Client{}
+		req, err := http.NewRequest("GET", url+"/api/v1/componentIdsByChecksum/"+sha2, nil)
+		if err != nil {
+			log.Warnf("Error checking xray: %s", err)
+			return err
+		}
+		req.SetBasicAuth(user, pass)
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Warnf("Error checking xray: %s", err)
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			log.Warnf("Error checking xray: response code is %s", resp.Status)
+			return errors.New("xray server responded with status: " + resp.Status)
+		}
+		err = json.NewDecoder(resp.Body).Decode(data)
+		if err != nil {
+			log.Warnf("Error checking xray: %s", err)
+			return err
+		}
+		return nil
+	}(&data)
 	if err != nil {
-		log.Warnf("Error checking xray: %s", err)
 		return false, false, false, err
 	}
-	req.SetBasicAuth(user, pass)
-	req.Header.Add("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Warnf("Error checking xray: %s", err)
-		return false, false, false, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		log.Warnf("Error checking xray: response code is %s", resp.Status)
-		return false, false, false, errors.New("xray server responded with status: " + resp.Status)
-	}
-	var data interface{}
-	json.NewDecoder(resp.Body).Decode(&data)
-	dt := data.(map[string]interface{})
-	artifacts := dt["artifacts"].([]interface{})
-	if len(artifacts) <= 0 {
+	if len(data.Components) <= 0 {
 		log.Debug("Xray does not recognize this sha")
 		return false, false, false, nil
 	}
-	for _, artifact := range artifacts {
-		art := artifact.(map[string]interface{})
-		issues := art["issues"].([]interface{})
-		for _, issue := range issues {
-			is := issue.(map[string]interface{})
-			typ := is["issue_type"].(string)
-			sev := is["severity"].(string)
-			if typ == "security" && sev == "Major" {
-				log.Infof("Major security issue found for sha: %s", sha2)
-				return true, true, false, nil
+	for _, comp := range data.Components {
+		bodyjson, err := json.Marshal(&comp)
+		if err != nil {
+			log.Warnf("Error checking xray: %s", err)
+			return false, false, false, err
+		}
+		var resp ViolationAPIResponse
+		err = func(data *ViolationAPIResponse) error {
+			client := &http.Client{}
+			path := "/ui/userIssues/details?direction=asc&order_by=severity&num_of_rows=0&page_num=0"
+			body := bytes.NewReader(bodyjson)
+			req, err := http.NewRequest("POST", url+path, body)
+			if err != nil {
+				log.Warnf("Error checking xray: %s", err)
+				return err
 			}
-			if typ == "license" && sev == "Major" {
-				log.Infof("Major license issue found for sha: %s", sha2)
-				return true, false, true, nil
+			req.SetBasicAuth(user, pass)
+			req.Header.Add("Content-Type", "application/json")
+			resp, err := client.Do(req)
+			if err != nil {
+				log.Warnf("Error checking xray: %s", err)
+				return err
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != 200 {
+				log.Warnf("Error checking xray: response code is %s", resp.Status)
+				return errors.New("xray server responded with status: " + resp.Status)
+			}
+			err = json.NewDecoder(resp.Body).Decode(data)
+			if err != nil {
+				log.Warnf("Error checking xray: %s", err)
+				return err
+			}
+			return nil
+		}(&resp)
+		if err != nil {
+			return false, false, false, err
+		}
+		for _, item := range resp.Data {
+			if item.Severity == "High" {
+				if item.Type == "security" {
+					log.Infof("Major security issue found for sha: %s", sha2)
+					return true, true, false, nil
+				} else if item.Type == "licenses" || item.Type == "license" {
+					log.Infof("Major license issue found for sha: %s", sha2)
+					return true, false, true, nil
+				}
 			}
 		}
 	}
