@@ -1,0 +1,95 @@
+steps:
+
+# Build docker image with two tags:
+# latest and commit sha
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+  - 'build'
+  - '--tag=${_ARTIFACTORY}/kubexray:latest'
+  - '--tag=${_ARTIFACTORY}/kubexray:$COMMIT_SHA'
+  - '.'
+  id: 'build_image'
+
+# Pull artifactory docker registry creds from GCS bucket
+- name: gcr.io/cloud-builders/gsutil
+  args: ['rsync', 'gs://${_GCS_BUCKET}/', '/workspace/']
+  id: 'fetch_creds'
+  waitFor:
+  - 'build_image'
+
+# Decrypt files
+- name: gcr.io/cloud-builders/gcloud
+  args:
+  - kms
+  - decrypt
+  - --ciphertext-file=/workspace/artifactory.creds.enc
+  - --plaintext-file=/workspace/artifactory.creds
+  - --location=global
+  - --keyring=kubexray-ci
+  - --key=kubexray-ci
+  id: 'decrypt_art_creds'
+
+ - name: gcr.io/cloud-builders/gcloud
+  args:
+  - kms
+  - decrypt
+  - --ciphertext-file=/workspace/xray_config.yaml.enc
+  - --plaintext-file=/workspace/xray_config.yaml
+  - --location=global
+  - --keyring=kubexray-ci
+  - --key=kubexray-ci
+  id: 'decrypt_xray_creds' 
+
+
+# Push to artifactory
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    source /workspace/artifactory.creds
+    docker login -u=$${A_USER} -p=$${A_PASSWORD} ${_ARTIFACTORY}
+    docker push ${_ARTIFACTORY}/kubexray
+  id: push_image
+  waitFor:
+  - 'decrypt_xray_creds'
+
+# Fetch GKE cluster credentials
+- name: 'gcr.io/cloud-builders/kubectl'
+  env:
+  - 'CLOUDSDK_COMPUTE_ZONE=${_ZONE}'
+  - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}'
+  - 'KUBECONFIG=/workspace/.kube/config'
+  args: ['cluster-info']
+  id: 'get_gke_creds'
+
+# Install run helm cli and run kubexray release install/upgrade
+- name: 'ubuntu'
+  env:
+  - 'DESIRED_VERSION=v2.11.0'
+  - 'KUBECONFIG=/workspace/.kube/config'
+  - 'HELM_HOST=localhost:44134'
+  - 'HELM_TILLER_SILENT=true'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    mkdir -p /workspace/tmp
+    apt update -qq
+    apt install -qq curl git -y
+    curl https://raw.githubusercontent.com/helm/helm/master/scripts/get > /workspace/tmp/get_helm.sh
+    chmod 700 /workspace/tmp/get_helm.sh
+    /workspace/tmp/get_helm.sh
+    helm init --client-only
+    helm repo add jfrog https://charts.jfrog.io/
+    repo update
+    helm plugin install https://github.com/rimusz/helm-tiller
+    helm tiller start-ci >/dev/null 2>&1
+    helm upgrade --install kubexray --namespace kubexray charts/kubexray/ --set xrayConfig="$(cat charts/files/xray_config.yaml | base64 -w 0)" \
+      --set image.repository="${_ARTIFACTORY}/kubexray" \
+      --set image.tag="$COMMIT_SHA"
+    helm upgrade --install nginx-test --namespace nginx charts/nginx-test/ --set image.repository="${_ARTIFACTORY}/nginx"
+    helm upgrade --install nginx --namespace nginx charts/nginx/
+  id: 'run_helm'
+  waitFor:
+  - 'push_image'

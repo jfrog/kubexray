@@ -1,4 +1,4 @@
-# JFrog Kube-Xray scanner on Kubernetes Helm Chart
+# JFrog kubexray scanner on Kubernetes Helm Chart
 
 ## Prerequisites Details
 
@@ -8,7 +8,7 @@
 
 This chart will do the following:
 
-* Deploy JFrog Kube-Xray micro-service
+* Deploy JFrog KubeXray
 
 ## Requirements
 
@@ -42,22 +42,21 @@ slackWebhookUrl: https://hooks.slack.com/services/your_slack_webhook_url
 xrayWebhookToken: ""
 ```
 
-### Enable Kube-Xray WebHook
+### Enable kubexray WebHook
 
-If you want Kube-Xray to react on Xray policy changes generate `xrayWebhooToken` with `openssl rand -base64 64 | tr -dc A-Za-z0-9`:
+If you want kubexray to react on Xray policy changes generate `xrayWebhooToken` with `openssl rand -base64 64 | tr -dc A-Za-z0-9`:
 
 ```
 url: https://xray.mydomain.com
 user: admin
 password: password
 slackWebhookUrl: https://hooks.slack.com/services/your_slack_webhook_url 
-xrayWebhookToken: generated_token
+xrayWebhookToken: replace_with_generated_token
 ```
 
-Also you need to add generated your `kube-xray_url` + `xrayWebhooToken` to your Xray server under `Admin/Webhooks`.
+**Note:** Also you need to add `kubexray_url` your generated `xrayWebhooToken` to your Xray server under `Admin/Webhooks`.
 
-
-## Install JFrog Kube-Xray
+## Install JFrog KubeXray
 
 ### Add JFrog Helm repository
 
@@ -69,55 +68,55 @@ helm repo add jfrog https://charts.jfrog.io
 
 ### Install Chart
 
-#### Install JFrog Kube-Xray
+#### Install JFrog KubeXray
 
 ```bash
-helm install --name kube-xray --namespace kube-xray jfrog/kube-xray \
-    --set xrayConfig="$(cat path_to_your/xray_config.yaml | base64 -w 0)" --dry-run --debug
+helm install --name kubexray --namespace kubexray jfrog/kubexray \
+    --set xrayConfig="$(cat path_to_your/xray_config.yaml | base64)"
 ```
 
 #### Installing with existing secret
 
-You can deploy the Kube-Xray configuration file `xray_config.yaml` as a [Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/).
+You can deploy the KubeXray configuration file `xray_config.yaml` as a [Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/).
 
 
 Create the Kubernetes secret
 
 ```bash
-kubectl create secret generic kube-xray --from-file=path_to_your/xray_config.yaml
+kubectl create secret generic kubexray --from-file=path_to_your/xray_config.yaml
 ```
 
 Pass the configuration file to helm
 
 ```bash
- helm install --name kube-xray --namespace kube-xray jfrog/kube-xray \
-    --set existingSecret="kube-xray"
+ helm install --name kubexray --namespace kubexray jfrog/kubexray \
+    --set existingSecret="kubexray"
 ```
 
-**NOTE:** You have to keep passing the configuration file secret parameter as `--set existingSecret="kube-xray"` on all future calls to `helm install` and `helm upgrade` or set it in `values.yaml` file `existingSecret: kube-xray`!
+**NOTE:** You have to keep passing the configuration file secret parameter as `--set existingSecret="kubexray"` on all future calls to `helm install` and `helm upgrade` or set it in `values.yaml` file `existingSecret: kubexray`!
 
 ## Status
 
 See the status of your deployed **helm** release
 
 ```bash
-helm status kube-xray
+helm status kubexray
 ```
 
 ## Upgrade
 
-E.g you have changed scan policy rules and to need upgrade an existing Kube-Xray release
+E.g you have changed scan policy rules and to need upgrade an existing kubexray release
 
 ```bash
-helm upgrade kube-xray --namespace kube-xray jfrog/kube-xray \
-    --set xrayConfig="$(cat path_to_your/xray_config.yaml | base64 -w 0)"
+helm upgrade kubexray --namespace kubexray jfrog/kubexray \
+    --set xrayConfig="$(cat path_to_your/xray_config.yaml | base64)"
 ```
 
 Upgrading with existing secret
 
 ```bash
-helm upgrade --install kube-xray --namespace kube-xray jfrog/kube-xray \
-    --set existingSecret="kube-xray"
+helm upgrade --install kubexray --namespace kubexray jfrog/kubexray \
+    --set existingSecret="kubexray"
 ```
 
 ## Remove
@@ -126,7 +125,7 @@ Removing a **helm** release is done with
 
 ```bash
 # Remove the Xray services and data tools
-helm delete --purge kube-xray
+helm delete --purge kubexray
 ```
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
@@ -155,15 +154,15 @@ The following table lists the configurable parameters of the xray chart and thei
 | `resources.limits.memory` | Specifies memory limit | `128Mi` |
 | `resources.requests.cpu` | Specifies CPU request | `100m` |
 | `resources.requests.memory` | Specifies memory request | `128Mi` |
-| `nodeSelector` | Kube-xray micro-service node selector | `{}` |
-| `tolerations` | Kube-xray micro-service node tolerations | `[]` |
-| `affinity` | Kube-xray micro-service node affinity | `{}` |
+| `nodeSelector` | kubexray micro-service node selector | `{}` |
+| `tolerations` | kubexray micro-service node tolerations | `[]` |
+| `affinity` | kubexray micro-service node affinity | `{}` |
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install/upgrade`.
 
 Alternatively, a YAML file that specifies the values for the above parameters can be provided while installing the chart. For example
 
 ```bash
-helm upgrade kube-xray --namespace kube-xray jfrog/kube-xray \
-    --set --set existingSecret="kube-xray",existingSecretKey="xray_config.yaml" -f override-values.yaml 
+helm upgrade kubexray --namespace kubexray jfrog/kubexray \
+    --set --set existingSecret="kubexray",existingSecretKey="xray_config.yaml" -f override-values.yaml 
 ```

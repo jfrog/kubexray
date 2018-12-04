@@ -2,18 +2,18 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "kube-xray.fullname" . }}
+  name: {{ include "kubexray.fullname" . }}
   labels:
-    app.kubernetes.io/name: {{ include "kube-xray.name" . }}
-    helm.sh/chart: {{ include "kube-xray.chart" . }}
+    app.kubernetes.io/name: {{ include "kubexray.name" . }}
+    helm.sh/chart: {{ include "kubexray.chart" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "kube-xray.fullname" . }}
+  name: {{ include "kubexray.fullname" . }}
 subjects:
   - kind: ServiceAccount
-    name: {{ include "kube-xray.fullname" . }}
+    name: {{ include "kubexray.fullname" . }}
     namespace: {{ .Release.Namespace | quote }}
 {{ end }}

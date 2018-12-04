@@ -4,3 +4,5 @@ go.sum
 files/
 tmp/
 override-values.yaml
+artifactory.creds*
+SUBSTITUTIONS
