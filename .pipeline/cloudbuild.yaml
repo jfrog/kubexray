@@ -12,7 +12,7 @@ steps:
 
 # Pull artifactory docker registry creds from GCS bucket
 - name: gcr.io/cloud-builders/gsutil
-  args: ['rsync', 'gs://${_GCS_BUCKET}/', '/workspace/']
+  args: ['cp', 'gs://${_GCS_BUCKET}/*', '/workspace/']
   id: 'fetch_creds'
   waitFor:
   - 'build_image'
