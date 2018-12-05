@@ -1,0 +1,43 @@
+steps:
+
+# Build docker image with two tags:
+# latest and tag name
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+  - 'build'
+  - '--tag=${_BINTRAY}/kubexray:latest'
+  - '--tag=${_BINTRAY}/kubexray:$TAG_NAME'
+  - '.'
+  id: 'build_image'
+
+# Pull bintray docker registry creds from GCS bucket
+- name: gcr.io/cloud-builders/gsutil
+  args: ['cp', 'gs://${_GCS_BUCKET}/*', '/workspace/']
+  id: 'fetch_creds'
+  waitFor:
+  - 'build_image'
+
+# Decrypt file
+- name: gcr.io/cloud-builders/gcloud
+  args:
+  - kms
+  - decrypt
+  - --ciphertext-file=/workspace/bintray.creds.enc
+  - --plaintext-file=/workspace/bintray.creds
+  - --location=global
+  - --keyring=kubexray-ci
+  - --key=kubexray-ci
+  id: 'decrypt_bin_creds'
+
+# Push to bintray
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    source /workspace/bintray.creds
+    docker login -u=$${B_USER} -p=$${B_PASSWORD} ${_BINTRAY}
+    docker push ${_BINTRAY}/kubexray
+  id: push_image
+  waitFor:
+  - 'decrypt_bin_creds'

@@ -86,7 +86,7 @@ steps:
     helm plugin install https://github.com/rimusz/helm-tiller
     helm tiller start-ci >/dev/null 2>&1
     helm upgrade --install kubexray --namespace kubexray charts/kubexray/ --set xrayConfig="$(cat /workspace/xray_config.yaml | base64 -w 0)" \
-      --set image.repository="${_ARTIFACTORY}/kubexray",image.tag="$COMMIT_SHA" -f charts/policies-test-values.yaml
+      --set image.repository="${_ARTIFACTORY}/kubexray",image.tag="$COMMIT_SHA" -f charts/policies-test-values.yaml -f /workspace/ingress-values.yaml
     helm upgrade --install nginx-test --namespace nginx charts/nginx-test/ --set image.repository="${_ARTIFACTORY}/nginx"
     helm upgrade --install nginx --namespace nginx charts/nginx/
   id: 'run_helm'
