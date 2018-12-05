@@ -710,10 +710,10 @@ func checkXray(sha2, url, user, pass string) (bool, bool, bool, error) {
 		for _, item := range resp.Data {
 			if item.Severity == "High" {
 				if item.Type == "security" {
-					log.Infof("Major security issue found for sha: %s", sha2)
+					log.Infof("Major security violation found for sha: %s", sha2)
 					return true, true, false, nil
 				} else if item.Type == "licenses" || item.Type == "license" {
-					log.Infof("Major license issue found for sha: %s", sha2)
+					log.Infof("Major license violation found for sha: %s", sha2)
 					return true, false, true, nil
 				}
 			}
