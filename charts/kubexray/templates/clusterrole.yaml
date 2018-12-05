@@ -19,6 +19,7 @@ rules:
       - statefulsets
       - deployments
       - jobs
+      - namespaces
     verbs:
       - "*"
 {{ end }}
