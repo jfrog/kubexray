@@ -87,7 +87,7 @@ steps:
     helm tiller start-ci >/dev/null 2>&1
     helm upgrade --install kubexray --namespace kubexray charts/kubexray/ --set xrayConfig="$(cat /workspace/xray_config.yaml | base64 -w 0)" \
       --set image.repository="${_ARTIFACTORY}/kubexray",image.tag="$COMMIT_SHA" -f test/policies-test-values.yaml -f /workspace/ingress-values.yaml
-    echo "Remove nginx-test and nginx releases, so kubexray policies can be tested!""
+    echo "Remove nginx-test and nginx releases, so kubexray policies can be tested!"
     helm delete --purge nginx-test nginx
     sleep 5
     helm upgrade --install nginx-test --namespace nginx test/charts/nginx-test/ --set image.repository="${_ARTIFACTORY}/nginx"
