@@ -353,11 +353,12 @@ func handleXrayWebhook(t *HandlerImpl, client kubernetes.Interface) http.Handler
 
 // ObjectCreated is called when an object is created
 func (t *HandlerImpl) ObjectCreated(client kubernetes.Interface, obj interface{}) {
+	pod := obj.(*core_v1.Pod)
 	log.Debug("HandlerImpl.ObjectCreated")
-	_, typ := checkResource(client, obj.(*core_v1.Pod))
-	comps, rec, seciss, liciss := getPodInfo(t, obj.(*core_v1.Pod))
-	if isWhitelistedNamespace(t, obj.(*core_v1.Pod), rec, seciss, liciss) {
-		log.Debug("Ignoring pod: %s (due to whitelisted namespace: %s)", obj.(*core_v1.Pod).Name, obj.(*core_v1.Pod).Namespace)
+	_, typ := checkResource(client, pod)
+	comps, rec, seciss, liciss := getPodInfo(t, pod)
+	if isWhitelistedNamespace(t, pod, rec, seciss, liciss) {
+		log.Debug("Ignoring pod: %s (due to whitelisted namespace: %s)", pod.Name, pod.Namespace)
 		return
 	}
 	delete, scaledown := false, false
@@ -381,23 +382,24 @@ func (t *HandlerImpl) ObjectCreated(client kubernetes.Interface, obj interface{}
 	if liciss {
 		check(t.license)
 	}
+	act := ""
+	if delete {
+		act = "delete"
+	} else if scaledown {
+		act = "scaledown"
+	}
+	payload := NotifyPayload{Name: pod.Name, Namespace: pod.Namespace, Action: act, Cluster: t.clusterurl, Components: comps}
+	if t.slackWebhook != "" && (!rec || seciss || liciss) {
+		notifyForPod(t.slackWebhook, payload, seciss, liciss)
+	}
 	if delete || scaledown {
-		pod := obj.(*core_v1.Pod)
-		act := "scaledown"
-		if delete {
-			act = "delete"
-		}
-		payload := NotifyPayload{Name: pod.Name, Namespace: pod.Namespace, Action: act, Cluster: t.clusterurl, Components: comps}
-		if t.slackWebhook != "" {
-			notifyForPod(t.slackWebhook, payload, seciss, liciss)
-		}
-		removePod(client, obj.(*core_v1.Pod), typ, delete)
+		removePod(client, pod, typ, delete)
 		err := sendXrayNotify(t, payload)
 		if err != nil {
 			log.Errorf("Problem notifying xray about pod %s: %s", payload.Name, err)
 		}
 	} else {
-		log.Debugf("Ignoring pod: %s", obj.(*core_v1.Pod).Name)
+		log.Debugf("Ignoring pod: %s", pod.Name)
 	}
 }
 
@@ -465,9 +467,11 @@ func notifyForPod(slack string, payload NotifyPayload, seciss, liciss bool) {
 		return
 	}
 	client := &http.Client{}
-	msg1 := "*scaled to zero*. "
+	msg1 := "*ignored*. "
 	if payload.Action == "delete" {
 		msg1 = "*deleted*. "
+	} else if payload.Action == "scaledown" {
+		msg1 = "*scaled to zero*. "
 	}
 	msg2 := "_Reason: Unrecognized by Xray_\n"
 	if seciss {
