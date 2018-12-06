@@ -301,10 +301,6 @@ func handleXrayWebhook(t *HandlerImpl, client kubernetes.Interface) http.Handler
 				}
 			}
 			if delete || scaledown {
-				// send a slack notification if applicable
-				if t.slackWebhook != "" {
-					notifyForPod(t.slackWebhook, term.pod, term.isstype == "security", term.isstype == "license", delete)
-				}
 				// remove the pod by either deleting it or scaling it to zero replicas
 				if delete {
 					term.action = "delete"
@@ -337,6 +333,10 @@ func handleXrayWebhook(t *HandlerImpl, client kubernetes.Interface) http.Handler
 					act = "delete"
 				}
 				comp = append(comp, c)
+			}
+			// send a slack notification if applicable
+			if t.slackWebhook != "" {
+				notifyForPod(t.slackWebhook, group[0].pod, group[0].isstype == "security", group[0].isstype == "license", act == "delete")
 			}
 			payload := NotifyPayload{Name: group[0].pod.Name, Namespace: group[0].pod.Namespace, Action: act, Cluster: t.clusterurl, Components: comp}
 			err := sendXrayNotify(t, payload)
