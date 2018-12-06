@@ -4,6 +4,8 @@
 
 replicaCount: 1
 
+imagePullSecrets:
+
 image:
   repository: _update_with_the_real_repo_/kubexray
   # Note that by default we use appVersion to get image tag
@@ -49,6 +51,9 @@ securityContext:
 service:
   type: ClusterIP
   port: 80
+
+env:
+  logLevel: "INFO"
 
 # Webhook REST API ingress
 ingress:
