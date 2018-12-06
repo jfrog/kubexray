@@ -3,6 +3,7 @@ bin/
 go.sum
 files/
 tmp/
+credentials/
 override-values.yaml
 artifactory.creds*
 SUBSTITUTIONS

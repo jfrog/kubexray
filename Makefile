@@ -1,8 +1,4 @@
 
-define xray_config
-$(eval XRAY_CONFIG := $(shell cat charts/files/xray_config.yaml | base64))
-endef
-
 .PHONY: image
 image:
 	@echo "++ Building kubexray docker image..."
@@ -17,10 +13,9 @@ build:
 .PHONY: cloud
 cloud:
 	@echo "++ Submiting CI cloud build..."
-	.pipeline/submit_cloud_build.sh
+	.scripts/submit_cloud_build.sh
 
-.PHONY: encrypt
-encrypt:
-	gcloud kms encrypt --key=kubexray-ci --keyring=kubexray-ci --location=global --ciphertext-file=charts/files/artifactory.creds.enc --plaintext-file=charts/files/artifactory.creds
-	gcloud kms encrypt --key=kubexray-ci --keyring=kubexray-ci --location=global --ciphertext-file=charts/files/xray_config.yaml.enc --plaintext-file=charts/files/xray_config.yaml
-	gcloud kms encrypt --key=kubexray-ci --keyring=kubexray-ci --location=global --ciphertext-file=charts/files/bintray.creds.enc --plaintext-file=charts/files/bintray.creds
+.PHONY: creds
+creds:
+	@echo "++ Uploading creds files to GCS bucket..."
+	.scripts/upload_creds.sh
