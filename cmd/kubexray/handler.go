@@ -168,7 +168,7 @@ func parseWebhook(body interface{}) []searchItem {
 		issue := iss.(map[string]interface{})
 		severity := issue["severity"].(string)
 		isstype := issue["type"].(string)
-		if severity != "Major" || isstype == "" {
+		if (severity != "Major" && severity != "High") || isstype == "" {
 			continue
 		}
 		for _, art := range issue["impacted_artifacts"].([]interface{}) {
@@ -792,11 +792,11 @@ func checkXray(sha2, url, user, pass string) (bool, bool, bool, error) {
 			is := issue.(map[string]interface{})
 			typ := is["issue_type"].(string)
 			sev := is["severity"].(string)
-			if typ == "security" && sev == "Major" {
+			if typ == "security" && (sev == "Major" || sev == "High") {
 				log.Infof("Major security issue found for sha: %s", sha2)
 				return true, true, false, nil
 			}
-			if typ == "license" && sev == "Major" {
+			if typ == "license" && (sev == "Major" || sev == "High") {
 				log.Infof("Major license issue found for sha: %s", sha2)
 				return true, false, true, nil
 			}
