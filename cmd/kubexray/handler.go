@@ -462,19 +462,19 @@ func notifyForPod(slack string, payload NotifyPayload, seciss, liciss bool) {
 		return
 	}
 	client := &http.Client{}
-	msg1 := "*scaled to zero*.\n"
+	msg1 := "*scaled to zero*. "
 	if payload.Action == "delete" {
-		msg1 = "*deleted*.\n"
+		msg1 = "*deleted*. "
 	}
 	msg2 := "_Reason: Unrecognized by Xray_\n"
 	if seciss {
-		msg2 = "_Reason: major security issue_\n"
+		msg2 = "_Reason: Major security issue_\n"
 	} else if liciss {
-		msg2 = "_Reason: major license issue_\n"
+		msg2 = "_Reason: Major license issue_\n"
 	}
 	msg3 := "Affected components:"
 	for _, comp := range payload.Components {
-		msg3 += "\n* " + comp.Name + " _(sha256:" + comp.Checksum + ")_"
+		msg3 += "\n• " + comp.Name + " _(sha256:" + comp.Checksum + ")_"
 	}
 	var js = map[string]string{
 		"username": "kube-xray",
