@@ -171,6 +171,9 @@ func parseWebhook(body interface{}) []searchItem {
 		if (severity != "Major" && severity != "High") || isstype == "" {
 			continue
 		}
+		if _, ok := issue["impacted_artifacts"]; !ok {
+			continue
+		}
 		for _, art := range issue["impacted_artifacts"].([]interface{}) {
 			artif := art.(map[string]interface{})
 			pkgtype := artif["pkg_type"].(string)
