@@ -23,6 +23,10 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/config-xray.yaml") . | sha256sum }}
     spec:
       serviceAccountName: {{ include "kubexray.fullname" . }}
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+      - name: {{ .Values.imagePullSecrets }}
+      {{- end }}
 {{- if .Values.securityContext.enabled }}
       securityContext:
         runAsUser: {{ .Values.securityContext.kubeXrayUserId }}
@@ -32,6 +36,9 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+          - name: KUBE_XRAY_LOG_LEVEL
+            value: {{ .Values.env.logLevel }}
           ports:
             - name: http
               containerPort: 8765
