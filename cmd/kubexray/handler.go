@@ -334,11 +334,11 @@ func handleXrayWebhook(t *HandlerImpl, client kubernetes.Interface) http.Handler
 				}
 				comp = append(comp, c)
 			}
+			payload := NotifyPayload{Name: group[0].pod.Name, Namespace: group[0].pod.Namespace, Action: act, Cluster: t.clusterurl, Components: comp}
 			// send a slack notification if applicable
 			if t.slackWebhook != "" {
-				notifyForPod(t.slackWebhook, group[0].pod, group[0].isstype == "security", group[0].isstype == "license", act == "delete")
+				notifyForPod(t.slackWebhook, payload, group[0].isstype == "security", group[0].isstype == "license")
 			}
-			payload := NotifyPayload{Name: group[0].pod.Name, Namespace: group[0].pod.Namespace, Action: act, Cluster: t.clusterurl, Components: comp}
 			err := sendXrayNotify(t, payload)
 			if err != nil {
 				log.Errorf("Problem notifying xray about pod %s: %s", payload.Name, err)
@@ -379,16 +379,16 @@ func (t *HandlerImpl) ObjectCreated(client kubernetes.Interface, obj interface{}
 		check(t.license)
 	}
 	if delete || scaledown {
-		if t.slackWebhook != "" {
-			notifyForPod(t.slackWebhook, obj.(*core_v1.Pod), seciss, liciss, delete)
-		}
-		removePod(client, obj.(*core_v1.Pod), typ, delete)
 		pod := obj.(*core_v1.Pod)
 		act := "scaledown"
 		if delete {
 			act = "delete"
 		}
 		payload := NotifyPayload{Name: pod.Name, Namespace: pod.Namespace, Action: act, Cluster: t.clusterurl, Components: comps}
+		if t.slackWebhook != "" {
+			notifyForPod(t.slackWebhook, payload, seciss, liciss)
+		}
+		removePod(client, obj.(*core_v1.Pod), typ, delete)
 		err := sendXrayNotify(t, payload)
 		if err != nil {
 			log.Errorf("Problem notifying xray about pod %s: %s", payload.Name, err)
@@ -455,26 +455,30 @@ func isWhitelistedNamespace(t *HandlerImpl, pod *core_v1.Pod, rec, seciss, licis
 }
 
 // send a notification to slack
-func notifyForPod(slack string, pod *core_v1.Pod, seciss, liciss, delete bool) {
-	log.Debugf("Sending notification concerning pod %s", pod.Name)
+func notifyForPod(slack string, payload NotifyPayload, seciss, liciss bool) {
+	log.Debugf("Sending notification concerning pod %s", payload.Name)
 	if slack == "" {
 		log.Warn("Unable to send notification, no Slack webhook URL configured")
 		return
 	}
 	client := &http.Client{}
-	msg := "but it has not been scanned by XRay."
-	if seciss {
-		msg = "but XRay has detected a major security issue."
-	} else if liciss {
-		msg = "but XRay has detected a major license issue."
+	msg1 := "*scaled to zero*.\n"
+	if payload.Action == "delete" {
+		msg1 = "*deleted*.\n"
 	}
-	msg2 := " The pod has been scaled to zero."
-	if delete {
-		msg2 = " The pod has been deleted."
+	msg2 := "_Reason: Unrecognized by Xray_\n"
+	if seciss {
+		msg2 = "_Reason: major security issue_\n"
+	} else if liciss {
+		msg2 = "_Reason: major license issue_\n"
+	}
+	msg3 := "Affected components:"
+	for _, comp := range payload.Components {
+		msg3 += "\n* " + comp.Name + " _(sha256:" + comp.Checksum + ")_"
 	}
 	var js = map[string]string{
 		"username": "kube-xray",
-		"text":     "The Kubernetes pod " + pod.Name + " has just been deployed, " + msg + msg2,
+		"text":     "Pod *" + payload.Name + "* (in " + payload.Namespace + ") " + msg1 + msg2 + msg3,
 	}
 	encjs, err := json.Marshal(js)
 	if err != nil {
