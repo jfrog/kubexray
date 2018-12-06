@@ -25,6 +25,7 @@ type Handler interface {
 	ObjectUpdated(client kubernetes.Interface, objOld, objNew interface{})
 }
 
+// ResourceType represents the type of Kubernetes resource a pod belongs to.
 type ResourceType byte
 
 const (
@@ -33,6 +34,7 @@ const (
 	Deployment
 )
 
+// Action represents the action taken against a problematic pod.
 type Action byte
 
 const (
@@ -41,14 +43,15 @@ const (
 	Delete
 )
 
+// Policy encodes the policy structures in the config.yaml file.
 type Policy struct {
 	deployments  Action
 	statefulSets Action
 	whitelist []string
 }
 
-// TestHandler is a sample implementation of Handler
-type TestHandler struct {
+// HandlerImpl is a sample implementation of Handler
+type HandlerImpl struct {
 	clusterurl   string
 	url          string
 	user         string
@@ -60,11 +63,13 @@ type TestHandler struct {
 	license      Policy
 }
 
+// NotifyComponentPayload is a component structure in NotifyPayload.
 type NotifyComponentPayload struct {
 	Name     string `json:"component_name"`
 	Checksum string `json:"component_sha"`
 }
 
+// NotifyPayload is the payload used to notify xray of changes.
 type NotifyPayload struct {
 	Name       string                   `json:"pod_name"`
 	Namespace  string                   `json:"namespace"`
@@ -73,7 +78,7 @@ type NotifyPayload struct {
 	Components []NotifyComponentPayload `json:"components"`
 }
 
-// Unmarshaler implementation for Policy type
+// UnmarshalYAML is the unmarshaler implementation for the Policy type.
 func (x *Policy) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var k map[string]interface{}
 	err := unmarshal(&k)
@@ -114,9 +119,9 @@ func (x *Policy) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-// Init handles any handler initialization
-func (t *TestHandler) Init(client kubernetes.Interface, config *rest.Config) error {
-	log.Debug("TestHandler.Init")
+// Init initializes the handler with configuration data.
+func (t *HandlerImpl) Init(client kubernetes.Interface, config *rest.Config) error {
+	log.Debug("HandlerImpl.Init")
 	host := config.Host
 	if host[len(host)-1] != '/' {
 		host += "/"
@@ -145,6 +150,7 @@ func (t *TestHandler) Init(client kubernetes.Interface, config *rest.Config) err
 	return nil
 }
 
+// temporary structure for search results in webhook code
 type searchItem struct {
 	severity string
 	isstype string
@@ -154,6 +160,7 @@ type searchItem struct {
 	pod *core_v1.Pod
 }
 
+// parses the xray webhook request body
 func parseWebhook(body interface{}) []searchItem {
 	result := make([]searchItem, 0)
 	bodymap := body.(map[string]interface{})
@@ -178,6 +185,8 @@ func parseWebhook(body interface{}) []searchItem {
 	return result
 }
 
+// searches for checksums provided by the xray webhook, returning those that
+// match active running containers
 func searchChecksums(client kubernetes.Interface, shas []searchItem) ([]searchItem, error) {
 	result := make([]searchItem, 0)
 	nss, err := client.CoreV1().Namespaces().List(meta_v1.ListOptions{})
@@ -210,7 +219,8 @@ func searchChecksums(client kubernetes.Interface, shas []searchItem) ([]searchIt
 	return result, nil
 }
 
-func setupXrayWebhook(t *TestHandler, client kubernetes.Interface) {
+// setup the webhook for xray to call
+func setupXrayWebhook(t *HandlerImpl, client kubernetes.Interface) {
 	go func() {
 		http.HandleFunc("/", handleXrayWebhook(t, client))
 		err := http.ListenAndServe(":8765", nil)
@@ -220,15 +230,18 @@ func setupXrayWebhook(t *TestHandler, client kubernetes.Interface) {
 	}()
 }
 
-func handleXrayWebhook(t *TestHandler, client kubernetes.Interface) http.HandlerFunc {
+// handle when xray calls the webhook
+func handleXrayWebhook(t *HandlerImpl, client kubernetes.Interface) http.HandlerFunc {
 	return func(resp http.ResponseWriter, req *http.Request) {
 		log.Debug("Webhook triggered by Xray")
+		// check the auth token and fail if it's wrong
 		toks := req.Header["X-Auth-Token"]
 		if len(toks) <= 0 || toks[0] != t.webhookToken {
 			log.Warn("Xray did not send an appropriate token, aborting webhook")
 			resp.WriteHeader(403)
 			return
 		}
+		// parse the webhook request payload
 		body, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			log.Errorf("Error reading webhook request: %v", err)
@@ -242,6 +255,7 @@ func handleXrayWebhook(t *TestHandler, client kubernetes.Interface) http.Handler
 			resp.WriteHeader(400)
 			return
 		}
+		// find matching checksums in the cluster
 		searchterms := parseWebhook(data)
 		searchresult, err := searchChecksums(client, searchterms)
 		if err != nil {
@@ -249,6 +263,7 @@ func handleXrayWebhook(t *TestHandler, client kubernetes.Interface) http.Handler
 			resp.WriteHeader(500)
 			return
 		}
+		// check each match against the config to decide how to deal with it
 		for _, term := range searchresult {
 			_, typ := checkResource(client, term.pod)
 			if isWhitelistedNamespace(t, term.pod, true, term.isstype == "security", term.isstype == "license") {
@@ -286,9 +301,11 @@ func handleXrayWebhook(t *TestHandler, client kubernetes.Interface) http.Handler
 				}
 			}
 			if delete || scaledown {
+				// send a slack notification if applicable
 				if t.slackWebhook != "" {
 					notifyForPod(t.slackWebhook, term.pod, term.isstype == "security", term.isstype == "license", delete)
 				}
+				// remove the pod by either deleting it or scaling it to zero replicas
 				if delete {
 					term.action = "delete"
 				} else {
@@ -299,6 +316,7 @@ func handleXrayWebhook(t *TestHandler, client kubernetes.Interface) http.Handler
 				log.Debugf("Ignoring pod: %s", term.pod.Name)
 			}
 		}
+		// send notification to xray
 		groups := make(map[types.UID][]*searchItem)
 		for _, item := range searchresult {
 			if item.action == "" {
@@ -331,10 +349,10 @@ func handleXrayWebhook(t *TestHandler, client kubernetes.Interface) http.Handler
 }
 
 // ObjectCreated is called when an object is created
-func (t *TestHandler) ObjectCreated(client kubernetes.Interface, obj interface{}) {
-	log.Debug("TestHandler.ObjectCreated")
+func (t *HandlerImpl) ObjectCreated(client kubernetes.Interface, obj interface{}) {
+	log.Debug("HandlerImpl.ObjectCreated")
 	_, typ := checkResource(client, obj.(*core_v1.Pod))
-	comps, rec, seciss, liciss := printPodInfo(t, obj.(*core_v1.Pod))
+	comps, rec, seciss, liciss := getPodInfo(t, obj.(*core_v1.Pod))
 	if isWhitelistedNamespace(t, obj.(*core_v1.Pod), rec, seciss, liciss) {
 		log.Debug("Ignoring pod: %s (due to whitelisted namespace: %s)", obj.(*core_v1.Pod).Name, obj.(*core_v1.Pod).Namespace)
 		return
@@ -381,16 +399,17 @@ func (t *TestHandler) ObjectCreated(client kubernetes.Interface, obj interface{}
 }
 
 // ObjectDeleted is called when an object is deleted
-func (t *TestHandler) ObjectDeleted(client kubernetes.Interface, obj interface{}) {
-	log.Debug("TestHandler.ObjectDeleted")
+func (t *HandlerImpl) ObjectDeleted(client kubernetes.Interface, obj interface{}) {
+	log.Debug("HandlerImpl.ObjectDeleted")
 }
 
 // ObjectUpdated is called when an object is updated
-func (t *TestHandler) ObjectUpdated(client kubernetes.Interface, objOld, objNew interface{}) {
-	log.Debug("TestHandler.ObjectUpdated")
+func (t *HandlerImpl) ObjectUpdated(client kubernetes.Interface, objOld, objNew interface{}) {
+	log.Debug("HandlerImpl.ObjectUpdated")
 }
 
-func sendXrayNotify(t *TestHandler, payload NotifyPayload) error {
+// send the notification to xray
+func sendXrayNotify(t *HandlerImpl, payload NotifyPayload) error {
 	log.Debugf("Sending message back to xray concerning pod %s", payload.Name)
 	client := &http.Client{}
 	body, err := json.Marshal(payload)
@@ -415,7 +434,8 @@ func sendXrayNotify(t *TestHandler, payload NotifyPayload) error {
 	return nil
 }
 
-func isWhitelistedNamespace(t *TestHandler, pod *core_v1.Pod, rec, seciss, liciss bool) bool {
+// check if this namespace is in the whitelist for the provided violation type
+func isWhitelistedNamespace(t *HandlerImpl, pod *core_v1.Pod, rec, seciss, liciss bool) bool {
 	whitelist := make([]string, 0)
 	if !rec {
 		whitelist = append(whitelist, t.unscanned.whitelist...)
@@ -434,6 +454,7 @@ func isWhitelistedNamespace(t *TestHandler, pod *core_v1.Pod, rec, seciss, licis
 	return false
 }
 
+// send a notification to slack
 func notifyForPod(slack string, pod *core_v1.Pod, seciss, liciss, delete bool) {
 	log.Debugf("Sending notification concerning pod %s", pod.Name)
 	if slack == "" {
@@ -480,6 +501,7 @@ func notifyForPod(slack string, pod *core_v1.Pod, seciss, liciss, delete bool) {
 	log.Debug("Notification successful")
 }
 
+// get the parent resource name and type of a given pod
 func checkResource(client kubernetes.Interface, pod *core_v1.Pod) (string, ResourceType) {
 	subs1 := strings.LastIndexByte(pod.Name, '-')
 	subs2 := strings.LastIndexByte(pod.Name[:subs1], '-')
@@ -498,6 +520,7 @@ func checkResource(client kubernetes.Interface, pod *core_v1.Pod) (string, Resou
 	return "", Unrecognized
 }
 
+// remove a pod by either deleting it, or scaling it to zero replicas
 func removePod(client kubernetes.Interface, pod *core_v1.Pod, typ ResourceType, delete bool) {
 	deps := client.AppsV1().Deployments(pod.Namespace)
 	sets := client.AppsV1().StatefulSets(pod.Namespace)
@@ -546,7 +569,8 @@ func removePod(client kubernetes.Interface, pod *core_v1.Pod, typ ResourceType, 
 	}
 }
 
-func printPodInfo(t *TestHandler, pod *core_v1.Pod) ([]NotifyComponentPayload, bool, bool, bool) {
+// check a new pod against xray and extract useful information about it
+func getPodInfo(t *HandlerImpl, pod *core_v1.Pod) ([]NotifyComponentPayload, bool, bool, bool) {
 	components := make([]NotifyComponentPayload, 0)
 	recognized := true
 	hassecissue := false
@@ -576,6 +600,7 @@ func printPodInfo(t *TestHandler, pod *core_v1.Pod) ([]NotifyComponentPayload, b
 	return components, recognized, hassecissue, haslicissue
 }
 
+// parse the config.yaml file and return its contents
 func getConfig(path, path2 string) (Policy, Policy, Policy, error) {
 	file, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -592,6 +617,7 @@ func getConfig(path, path2 string) (Policy, Policy, Policy, error) {
 	return data["unscanned"], data["security"], data["license"], nil
 }
 
+// parse the xray_config.yaml file and return its contents
 func getXrayConfig(path, path2 string) (string, string, string, string, string, error) {
 	file, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -614,26 +640,32 @@ func getXrayConfig(path, path2 string) (string, string, string, string, string, 
 	return "", "", "", "", "", errors.New("xray_config.yaml does not contain required information")
 }
 
+// ComponentPayload is the component structure in ComponentAPIResponse, as well
+// as the request payload for the xray violation API.
 type ComponentPayload struct {
 	Package string `json:"package_id"`
 	Version string `json:"version"`
 }
 
+// ComponentAPIResponse is the response from the xray component API.
 type ComponentAPIResponse struct {
 	Checksum   string             `json:"sha256"`
 	Components []ComponentPayload `json:"ids"`
 }
 
+// ViolationAPIResponseItem is the item structure in a ViolationAPIResponse.
 type ViolationAPIResponseItem struct {
 	Type     string `json:"type"`
 	Severity string `json:"severity"`
 }
 
+// ViolationAPIResponse is the response from the xray violation API.
 type ViolationAPIResponse struct {
 	Total int                        `json:"total_count"`
 	Data  []ViolationAPIResponseItem `json:"data"`
 }
 
+// ask xray about the checksums in a given pod, specifically for any violations
 // func checkXray(sha2, url, user, pass string) (bool, bool, bool, error) {
 // 	log.Debugf("Checking sha %s with Xray ...", sha2)
 // 	var data ComponentAPIResponse
@@ -723,6 +755,7 @@ type ViolationAPIResponse struct {
 // 	return true, false, false, nil
 // }
 
+// ask xray about the checksums in a given pod, specifically for any issues
 func checkXray(sha2, url, user, pass string) (bool, bool, bool, error) {
 	log.Debugf("Checking sha %s with Xray ...", sha2)
 	client := &http.Client{}

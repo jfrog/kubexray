@@ -59,6 +59,8 @@ func getKubernetesClient() (kubernetes.Interface, *rest.Config) {
 	return client, config
 }
 
+// set the log level according to the KUBE_XRAY_LOG_LEVEL environment variable
+// if provided (default is INFO)
 func setLogLevel() {
 	lv, ok := os.LookupEnv("KUBE_XRAY_LOG_LEVEL")
 	if !ok {
@@ -88,11 +90,7 @@ func main() {
 
 	client, config := getKubernetesClient()
 
-	namespace := os.Getenv("JFROG_K8S_NS")
-	if namespace == "" {
-		namespace = meta_v1.NamespaceDefault
-	}
-	namespace = ""
+	namespace := os.Getenv("KUBE_XRAY_NS")
 
 	//Create the filtered informer
 	//See: cache.NewFilteredListWatchFromClient
@@ -143,7 +141,7 @@ func main() {
 		},
 	})
 
-	handler := &TestHandler{}
+	handler := &HandlerImpl{}
 	if handler.Init(client, config) != nil {
 		os.Exit(1)
 	}
