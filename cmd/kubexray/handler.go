@@ -417,7 +417,7 @@ func sendXrayNotify(t *HandlerImpl, payload NotifyPayload) error {
 		return err
 	}
 	log.Debugf("Message body: %s", string(body))
-	req, err := http.NewRequest("POST", t.url+"/kubexray", bytes.NewReader(body))
+	req, err := http.NewRequest("POST", t.url+"/api/v1/kube/metadata", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
