@@ -20,7 +20,7 @@ KubeXray also allows you to enforce policy for running applications that have no
 
 ## Install Instructions
 
-The easiest way to install KubeXay is using the Helm [chart](https://github.com/jfrog/charts/tree/master/stable/kubexray)
+The easiest way to install KubeXray is using the Helm [chart](https://github.com/jfrog/charts/tree/master/stable/kubexray)
 
 Please follow install instruction from chart's [readme](https://github.com/jfrog/charts/blob/master/stable/kubexray/README.md)
 
