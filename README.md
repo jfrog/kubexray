@@ -1,15 +1,24 @@
 # kubexray
 
-This integration enables run-time monitoring of pods on k8s via JFrog Xray.  
+An open source software project that monitors pods in a Kubernetes cluster to help you detect security & license violations in containers 
+running inside the pod. 
 
-kubexray listens to event streams from both the k8s api server and JFrog Xray to ensure that only the pods that comply with certain policies can run on k8s. It understands the variation between different k8s resources (StatefulSets & Deployments) and accordingly different actions are applied (scale down to 0, delete, ignore). 
+KubeXray listens to events from k8s api server, and leverages the metadata from JFrog Xray (commercial product) to ensure that only the pods that comply with your current policy can run on k8s. As an example, KubeXray listens to these event streams:
+* Deployment of a new service
+* Upgrade of an existing service
+* A new license policy, such as a new license type disallowed for runtime.
+* A new security issue
 
-What this allows is following -
-1. For every pod (running or scheduled to run) on k8s, kubexray checks if there are vulnerabilities or license issues. If yes, then actions (scaledown, delete, ignore) can be easily enforced. 
-2. For every pod (running or scheduled to run) on k8s, kubexray checks if the corresponding docker images are scanned by Xray (i.e. coming from Artifactory or not). If not, the same actions (scaledown, delete, ignore) can be applied. 
-3. Any time a new policy gets added or updated on Xray, or a new vulnerability is reported, kubexray detects this change and checks if there are issues with existing pods. Same actions (scaledown, delete, ignore) can be applied.
+And when an issue is detected, KubeXray responds according to the current policy that you have set. 
+
+You can select one of the following possible actions:
+* Scaledown to 0. The desired state of a service is updated to 0, making the services inactive but still traceable.
+* Delete the corresponding Kubernetes resource that’s pointing to a vulnerable container image(s)
+* Ignore and leave the pod running
+
+KubeXray also allows you to enforce policy for running applications that have not been scanned by JFrog Xray and whose risks are unknow. 
 
 
-## Install instructions
+## Build Instructions
 
-## How to enforce policies?
+## Install Instructions
