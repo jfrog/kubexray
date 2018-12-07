@@ -168,10 +168,11 @@ func parseWebhook(body interface{}) []searchItem {
 		issue := iss.(map[string]interface{})
 		severity := issue["severity"].(string)
 		isstype := issue["type"].(string)
-		if (severity != "Major" && severity != "High") || isstype == "" {
+		if (severity != "Major" && severity != "Critical" && severity != "High") || isstype == "" {
 			continue
 		}
 		if _, ok := issue["impacted_artifacts"]; !ok {
+			log.Debugf("Unable to process webhook, xray did not include impacted component data. Payload: %v", body)
 			continue
 		}
 		for _, art := range issue["impacted_artifacts"].([]interface{}) {
@@ -811,11 +812,11 @@ func checkXrayBackup(sha2, url, user, pass string) (bool, bool, bool, error) {
 			is := issue.(map[string]interface{})
 			typ := is["issue_type"].(string)
 			sev := is["severity"].(string)
-			if typ == "security" && (sev == "Major" || sev == "High") {
+			if typ == "security" && (sev == "Major" || sev == "Critical" || sev == "High") {
 				log.Infof("Major security issue found for sha: %s", sha2)
 				return true, true, false, nil
 			}
-			if typ == "license" && (sev == "Major" || sev == "High") {
+			if typ == "license" && (sev == "Major" || sev == "Critical" || sev == "High") {
 				log.Infof("Major license issue found for sha: %s", sha2)
 				return true, false, true, nil
 			}
