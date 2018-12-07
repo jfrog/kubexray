@@ -48,7 +48,7 @@ We welcome community contribution through pull requests.
 <a name="License"/>
 
 ## License
-This client is available under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
+This tool is available under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
 
 
 (c) All rights reserved JFrog
