@@ -19,3 +19,6 @@ scanPolicy:
     deployments: ignore
     # Set for statefulsets with license issues delete/scaledown/ignore
     statefulSets: ignore
+
+service:
+  type: LoadBalancer

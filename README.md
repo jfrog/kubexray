@@ -1,9 +1,9 @@
-# kubexray
+# JFrog KubeXray scanner on Kubernetes
 
 An open source software project that monitors pods in a Kubernetes cluster to help you detect security & license violations in containers 
 running inside the pod. 
 
-KubeXray listens to events from k8s api server, and leverages the metadata from JFrog Xray (commercial product) to ensure that only the pods that comply with your current policy can run on k8s. As an example, KubeXray listens to these event streams:
+KubeXray listens to events from Kubernetes API server, and leverages the metadata from JFrog Xray (commercial product) to ensure that only the pods that comply with your current policy can run on Kubernetes. As an example, KubeXray listens to these event streams:
 * Deployment of a new service
 * Upgrade of an existing service
 * A new license policy, such as a new license type disallowed for runtime.
@@ -16,9 +16,39 @@ You can select one of the following possible actions:
 * Delete the corresponding Kubernetes resource that’s pointing to a vulnerable container image(s)
 * Ignore and leave the pod running
 
-KubeXray also allows you to enforce policy for running applications that have not been scanned by JFrog Xray and whose risks are unknow. 
-
-
-## Build Instructions
+KubeXray also allows you to enforce policy for running applications that have not been scanned by JFrog Xray and whose risks are unknown. 
 
 ## Install Instructions
+
+The easiest way to install KubeXay is using the Helm [chart](https://github.com/jfrog/charts/tree/master/stable/kubexray)
+
+Please follow install instruction from chart's [readme](https://github.com/jfrog/charts/blob/master/stable/kubexray/README.md)
+
+## Local development and testing
+
+### Building binary
+
+To build `kubexray` locally 
+
+  ```console
+  make build
+  ```
+
+### Docker
+
+To build `kubexray` docker image locally (testing docker image build)
+
+  ```console
+  make image
+  ```
+
+## Contributing Code
+We welcome community contribution through pull requests.
+
+<a name="License"/>
+
+## License
+This client is available under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
+
+
+(c) All rights reserved JFrog

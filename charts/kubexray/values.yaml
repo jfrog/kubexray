@@ -7,7 +7,7 @@ replicaCount: 1
 imagePullSecrets:
 
 image:
-  repository: _update_with_the_real_repo_/kubexray
+  repository:  jfrog-docker-reg2.bintray.io/kubexray
   # Note that by default we use appVersion to get image tag
   # tag:
   pullPolicy: Always
@@ -21,7 +21,7 @@ xrayConfig: ""
 # Specify an existing secret holding the Xray config
 existingSecret: ""
 
-# Set kubexray scannig policy
+# Set kubexray scanning policy
 scanPolicy:
   unscanned:
     # Whitelist namespaces
@@ -48,12 +48,16 @@ securityContext:
   kubeXrayUserId: 1000
   kubeXrayGroupId: 1000
 
+# Webhook REST API Service
 service:
-  type: ClusterIP
   port: 80
-
-env:
-  logLevel: "INFO"
+  ## Default type is ClusterIP, to expose externally use LoadBalancer
+  ## On minikube use NodePort
+  type: ClusterIP
+  ## Provide static IP address
+  loadBalancerIP:
+  ## There are two available options: “Cluster” (default) and “Local”.
+  externalTrafficPolicy: Cluster
 
 # Webhook REST API ingress
 ingress:
@@ -72,17 +76,8 @@ ingress:
   #    hosts:
   #      - kubexray.example.com
 
-# Set livenessProbe
-# livenessProbe:
-#   httpGet:
-#     path: /
-#     port: http
-
-# Set readinessProbe
-# readinessProbe:
-#   httpGet:
-#     path: /
-#     port: http
+env:
+  logLevel: "INFO"
 
 # Set resources
 resources:
