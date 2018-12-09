@@ -7,3 +7,4 @@ credentials/
 override-values.yaml
 artifactory.creds*
 SUBSTITUTIONS
+.idea
