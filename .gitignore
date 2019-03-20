@@ -1,6 +1,5 @@
 vendor/
 bin/
-go.sum
 files/
 tmp/
 credentials/
