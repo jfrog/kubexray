@@ -1,4 +1,6 @@
-module github.com/jfrog/kube-xray
+module github.com/jfrog/kubexray
+
+go 1.12
 
 replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.1.1
 

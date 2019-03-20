@@ -66,7 +66,7 @@ steps:
 # Install run helm cli and run kubexray release upgrade
 - name: 'ubuntu'
   env:
-  - 'DESIRED_VERSION=v2.11.0'
+  - 'DESIRED_VERSION=v2.13.0'
   - 'KUBECONFIG=/workspace/.kube/config'
   - 'HELM_HOST=localhost:44134'
   - 'HELM_TILLER_SILENT=true'

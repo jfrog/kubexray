@@ -1,5 +1,4 @@
-FROM golang:1.11-alpine AS builder
-MAINTAINER "<solutions@jfrog.com>"
+FROM golang:1.12-alpine AS builder
 
 ARG srcpath="/build/kubexray"
 
@@ -9,9 +8,10 @@ RUN apk --no-cache add git && \
 ADD cmd/kubexray/ "$srcpath"
 
 RUN cd "$srcpath" && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a --installsuffix cgo --ldflags="-s" -o /kubexray
+    rm -f go.sum && \
+    GO111MODULE=on GOPROXY=https://gocenter.io CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a --installsuffix cgo --ldflags="-s" -o /kubexray
 
-FROM alpine:3.8
+FROM alpine:3.9
 RUN apk --no-cache add --update ca-certificates
 
 COPY --from=builder /kubexray /bin/kubexray
