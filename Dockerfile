@@ -8,7 +8,6 @@ RUN apk --no-cache add git && \
 ADD cmd/kubexray/ "$srcpath"
 
 RUN cd "$srcpath" && \
-    rm -f go.sum && \
     GO111MODULE=on GOPROXY=https://gocenter.io CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a --installsuffix cgo --ldflags="-s" -o /kubexray
 
 FROM alpine:3.9
