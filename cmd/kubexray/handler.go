@@ -516,6 +516,10 @@ func notifyForPod(slack string, payload NotifyPayload, seciss, liciss bool) {
 // get the parent resource name and type of a given pod
 func checkResource(client kubernetes.Interface, pod *core_v1.Pod) (string, ResourceType) {
 	subs1 := strings.LastIndexByte(pod.Name, '-')
+	if subs1 < 0 {
+		log.Debugf("Resource for pod %s is not a recognized resource type", pod.Name)
+		return "", Unrecognized
+	}
 	subs2 := strings.LastIndexByte(pod.Name[:subs1], '-')
 	sets := client.AppsV1().StatefulSets(pod.Namespace)
 	_, err := sets.Get(pod.Name[:subs1], meta_v1.GetOptions{})
@@ -523,6 +527,10 @@ func checkResource(client kubernetes.Interface, pod *core_v1.Pod) (string, Resou
 		return pod.Name[:subs1], StatefulSet
 	}
 	log.Debugf("Resource for pod %s is not stateful set %s: %v", pod.Name, pod.Name[:subs1], err)
+	if subs2 < 0 {
+		log.Debugf("Resource for pod %s is not a recognized resource type", pod.Name)
+		return "", Unrecognized
+	}
 	deps := client.AppsV1().Deployments(pod.Namespace)
 	_, err = deps.Get(pod.Name[:subs2], meta_v1.GetOptions{})
 	if err == nil {
