@@ -241,7 +241,7 @@ func handleXrayWebhook(t *HandlerImpl, client kubernetes.Interface) http.Handler
 		// check the auth token and fail if it's wrong
 		toks := req.Header["X-Auth-Token"]
 		if len(toks) <= 0 || toks[0] != t.webhookToken {
-			log.Warn("Xray did not send an appropriate token, aborting webhook")
+			log.Warn("Xray did not send an appropriate token, aborting webhook: Provided token value is %v", toks)
 			resp.WriteHeader(403)
 			return
 		}
