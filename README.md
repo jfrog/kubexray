@@ -1,5 +1,6 @@
 # Deprecation Notice
 *Note: KubeXray is no longer maintained or supported by JFrog.  Feel free to review this code for your own POC concepts, but we are not continuing to update it or add features.  For people looking for great tools to help for enforcement in Kubernetes, we do continue to have [KubeNab](https://github.com/jfrog/kubenab) which allows enforcement of what repositories a kubernetes cluster pulls from (which then can leverage enforcement of Xray policies in Artifactory).*
+
 # JFrog KubeXray scanner on Kubernetes
 
 An open source software project that monitors pods in a [Kubernetes](https://kubernetes.io/) cluster to help you detect security & license violations in containers 
